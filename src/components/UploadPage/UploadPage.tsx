@@ -1,5 +1,26 @@
 import { useState, useRef } from 'react';
-import { Upload, X, Video, FileVideo, AlertCircle, Check } from 'lucide-react';
+import { 
+  Upload, 
+  X, 
+  Video, 
+  FileVideo, 
+  AlertCircle, 
+  Check, 
+  Tv,
+  Sparkles,
+  Palette,
+  Cherry,
+  Theater,
+  Frown,
+  CloudRain,
+  Cpu,
+  Camera,
+  Tv2,
+  Cloud,
+  Zap,
+  File,
+  CheckCircle
+} from 'lucide-react';
 import './UploadPage.css';
 
 interface UploadPageProps {
@@ -17,7 +38,23 @@ const UploadPage = ({ onNext }: UploadPageProps) => {
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
   const [isDragging, setIsDragging] = useState(false);
   const [error, setError] = useState('');
+  const [selectedEffects, setSelectedEffects] = useState<string[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const effectOptions = [
+    { id: 'retro', name: 'Retro', icon: <Tv className="effect-icon" />, description: 'Vintage 80s vibe' },
+    { id: 'animated', name: 'Animated', icon: <Sparkles className="effect-icon" />, description: 'Dynamic transitions' },
+    { id: 'cartoon', name: 'Cartoon', icon: <Palette className="effect-icon" />, description: 'Fun and colorful' },
+    { id: 'anime', name: 'Anime', icon: <Cherry className="effect-icon" />, description: 'Japanese animation style' },
+    { id: 'toonies', name: 'Toonies', icon: <Theater className="effect-icon" />, description: 'Classic cartoon look' },
+    { id: 'sad', name: 'Sad', icon: <Frown className="effect-icon" />, description: 'Emotional and moody' },
+    { id: 'rainy', name: 'Rainy', icon: <CloudRain className="effect-icon" />, description: 'Atmospheric weather' },
+    { id: 'cyberpunk', name: 'Cyberpunk', icon: <Cpu className="effect-icon" />, description: 'Futuristic neon' },
+    { id: 'vintage', name: 'Vintage', icon: <Camera className="effect-icon" />, description: 'Old film aesthetic' },
+    { id: 'glitch', name: 'Glitch', icon: <Tv2 className="effect-icon" />, description: 'Digital distortion' },
+    { id: 'dreamy', name: 'Dreamy', icon: <Cloud className="effect-icon" />, description: 'Soft and ethereal' },
+    { id: 'epic', name: 'Epic', icon: <Zap className="effect-icon" />, description: 'Dramatic and powerful' }
+  ];
 
   const formatFileSize = (bytes: number): string => {
     if (bytes === 0) return '0 Bytes';
@@ -89,6 +126,14 @@ const UploadPage = ({ onNext }: UploadPageProps) => {
     setUploadedFiles(prev => prev.filter(file => file.id !== fileId));
   };
 
+  const toggleEffect = (effectId: string) => {
+    setSelectedEffects(prev => 
+      prev.includes(effectId) 
+        ? prev.filter(id => id !== effectId)
+        : [...prev, effectId]
+    );
+  };
+
   const canProceed = uploadedFiles.length >= 2;
 
   return (
@@ -123,8 +168,8 @@ const UploadPage = ({ onNext }: UploadPageProps) => {
             </p>
             
             <div className="upload-formats">
-              <span className="format-tag">MP4</span>
-              <span className="format-tag">MOV</span>
+              <span className="format-tag"><File className="format-icon" /> MP4</span>
+              <span className="format-tag"><File className="format-icon" /> MOV</span>
             </div>
           </div>
           
@@ -171,7 +216,7 @@ const UploadPage = ({ onNext }: UploadPageProps) => {
                   
                   <div className="file-actions">
                     <div className="file-status">
-                      <Check className="check-icon" />
+                      <CheckCircle className="check-icon" />
                       <span>Ready</span>
                     </div>
                     <button 
@@ -184,6 +229,42 @@ const UploadPage = ({ onNext }: UploadPageProps) => {
                 </div>
               ))}
             </div>
+          </div>
+        )}
+
+        {/* Effects Selection */}
+        {uploadedFiles.length > 0 && (
+          <div className="effects-section">
+            <h3 className="effects-title">
+              Choose Your Style Effects
+              <span className="effects-subtitle">Help AI understand your creative vision</span>
+            </h3>
+            
+            <div className="effects-grid">
+              {effectOptions.map((effect, index) => (
+                <button
+                  key={effect.id}
+                  className={`effect-card ${selectedEffects.includes(effect.id) ? 'effect-card-selected' : ''}`}
+                  onClick={() => toggleEffect(effect.id)}
+                  style={{ animationDelay: `${index * 0.1}s` }}
+                >
+                  <div className="effect-icon-container">{effect.icon}</div>
+                  <div className="effect-info">
+                    <span className="effect-name">{effect.name}</span>
+                    <span className="effect-description">{effect.description}</span>
+                  </div>
+                  <div className="effect-check">
+                    <Check className="effect-check-icon" />
+                  </div>
+                </button>
+              ))}
+            </div>
+            
+            {selectedEffects.length > 0 && (
+              <div className="selected-effects">
+                <span className="selected-count">{selectedEffects.length} effect{selectedEffects.length !== 1 ? 's' : ''} selected</span>
+              </div>
+            )}
           </div>
         )}
 

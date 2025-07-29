@@ -42,7 +42,7 @@ const UploadPage = ({ onNext }: UploadPageProps) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const effectOptions = [
-    { id: 'retro', name: 'Retro', icon: <Tv className="effect-icon" />, description: 'Vintage 80s vibe' },
+    { id: 'retro', name: 'Retro',  icon: <Tv className="effect-icon" />, description: 'Vintage 80s vibe' },
     { id: 'animated', name: 'Animated', icon: <Sparkles className="effect-icon" />, description: 'Dynamic transitions' },
     { id: 'cartoon', name: 'Cartoon', icon: <Palette className="effect-icon" />, description: 'Fun and colorful' },
     { id: 'anime', name: 'Anime', icon: <Cherry className="effect-icon" />, description: 'Japanese animation style' },

@@ -705,6 +705,70 @@
   font-size: 0.9rem;
 }
 
+/* Add these to your existing UploadPage.css */
+
+.upload-area-disabled {
+  opacity: 0.7;
+  pointer-events: none;
+}
+
+.processing-spinner {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 16px;
+}
+
+.spinner-icon {
+  animation: spin 1s linear infinite;
+  width: 48px;
+  height: 48px;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.progress-bar {
+  width: 100%;
+  height: 8px;
+  background-color: #e5e7eb;
+  border-radius: 4px;
+  overflow: hidden;
+  margin: 16px 0;
+}
+
+.progress-fill {
+  height: 100%;
+  background-color: #3b82f6;
+  transition: width 0.3s ease;
+}
+
+.next-icon.spinning {
+  animation: spin 1s linear infinite;
+}
+
+.requirement-met {
+  color: #10b981;
+}
+
+.requirements-list li {
+  display: flex;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.requirement-indicator {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background-color: #ef4444;
+  margin-right: 8px;
+}
+
+.requirement-met .requirement-indicator {
+  background-color: #10b981;
+}
 @keyframes slideInUp {
   from {
     transform: translateY(20px);

@@ -1,15 +1,30 @@
 import { useState } from 'react';
-import { Download, Instagram, Video, Smartphone, AlertTriangle, Check, Share2, Sparkles } from 'lucide-react';
+import { Download, Instagram, Video, Smartphone, AlertTriangle, Check, Share2, Sparkles, X, Crown, Zap, Star, Shield, CheckCircle } from 'lucide-react';
 import './ExportPage.css';
 
 interface ExportPageProps {
   onBack: () => void;
 }
 
+interface UpgradePlan {
+  id: string;
+  name: string;
+  price: number;
+  originalPrice?: number;
+  period: string;
+  description: string;
+  features: string[];
+  popular?: boolean;
+  bestValue?: boolean;
+}
+
 const ExportPage = ({ onBack }: ExportPageProps) => {
   const [selectedFormat, setSelectedFormat] = useState('instagram');
   const [isExporting, setIsExporting] = useState(false);
   const [exportComplete, setExportComplete] = useState(false);
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+  const [selectedPlan, setSelectedPlan] = useState<string>('pro');
+  const [isProcessingPayment, setIsProcessingPayment] = useState(false);
 
   const formats = [
     {
@@ -35,6 +50,60 @@ const ExportPage = ({ onBack }: ExportPageProps) => {
       ratio: '9:16',
       description: 'Perfect for YouTube Shorts format',
       size: '1080x1920'
+    }
+  ];
+
+  const upgradePlans: UpgradePlan[] = [
+    {
+      id: 'basic',
+      name: 'Basic',
+      price: 4.99,
+      originalPrice: 9.99,
+      period: 'month',
+      description: 'Perfect for casual creators getting started',
+      features: [
+        'No watermark on exports',
+        'HD 1080p quality',
+        '5 exports per month',
+        'Basic effects library',
+        'Email support'
+      ]
+    },
+    {
+      id: 'pro',
+      name: 'Pro',
+      price: 12.99,
+      originalPrice: 24.99,
+      period: 'month',
+      description: 'Everything you need for professional content',
+      features: [
+        'No watermark on exports',
+        '4K Ultra HD quality',
+        'Unlimited exports',
+        'Premium effects library',
+        'Advanced AI editing tools',
+        'Priority support',
+        'Custom branding options'
+      ],
+      popular: true
+    },
+    {
+      id: 'agency',
+      name: 'Agency',
+      price: 29.99,
+      originalPrice: 59.99,
+      period: 'month',
+      description: 'For teams and professional agencies',
+      features: [
+        'Everything in Pro plan',
+        '10 team members',
+        'Commercial usage rights',
+        'White-label solution',
+        'API access',
+        'Dedicated account manager',
+        'Custom AI model training'
+      ],
+      bestValue: true
     }
   ];
 
@@ -68,6 +137,71 @@ const ExportPage = ({ onBack }: ExportPageProps) => {
       navigator.clipboard.writeText(window.location.href);
     }
   };
+
+  const handleUpgradeClick = () => {
+    setShowUpgradeModal(true);
+  };
+
+  const handlePayment = async () => {
+    setIsProcessingPayment(true);
+    
+    try {
+      const selectedPlanData = upgradePlans.find(plan => plan.id === selectedPlan);
+      
+      // Initialize Flutterwave payment
+      if (typeof window !== 'undefined' && (window as any).FlutterwaveCheckout) {
+        const flutterwaveConfig = {
+          public_key: 'FLWPUBK_TEST-bb3802d6b13b255f4740653c0b2c75bc-X', // Replace with your Flutterwave public key
+          tx_ref: `sceneswitch-${Date.now()}`,
+          amount: selectedPlanData?.price || 12.99,
+          currency: 'USD',
+          payment_options: 'card, banktransfer, ussd',
+          customer: {
+            email: 'user@example.com', // You would get this from user data
+            name: 'SceneSwitch User',
+          },
+          customizations: {
+            title: 'SceneSwitch Pro Upgrade',
+            description: `Upgrade to ${selectedPlanData?.name} Plan`,
+            logo: 'https://yourdomain.com/logo.png',
+          },
+          callback: function(response: any) {
+            setIsProcessingPayment(false);
+            if (response.status === 'successful') {
+              alert('Payment successful! Your account has been upgraded.');
+              setShowUpgradeModal(false);
+            } else {
+              alert('Payment failed. Please try again.');
+            }
+          },
+          onclose: function() {
+            setIsProcessingPayment(false);
+          }
+        };
+
+        (window as any).FlutterwaveCheckout(flutterwaveConfig);
+      } else {
+        // Fallback if Flutterwave isn't loaded
+        setTimeout(() => {
+          setIsProcessingPayment(false);
+          alert('Payment processed successfully! (This is a demo)');
+          setShowUpgradeModal(false);
+        }, 2000);
+      }
+    } catch (error) {
+      console.error('Payment error:', error);
+      setIsProcessingPayment(false);
+      alert('An error occurred during payment. Please try again.');
+    }
+  };
+
+  // Load Flutterwave script
+  if (typeof window !== 'undefined' && !(window as any).FlutterwaveCheckout) {
+    const script = document.createElement('script');
+    script.src = 'https://checkout.flutterwave.com/v3.js';
+    script.async = true;
+    document.body.appendChild(script);
+  }
 
   return (
     <div className="export-page">
@@ -161,7 +295,7 @@ const ExportPage = ({ onBack }: ExportPageProps) => {
                 Videos exported on the free plan include a small SceneSwitch watermark. 
                 Upgrade to Pro to remove the watermark and unlock premium features.
               </p>
-              <button className="upgrade-btn">
+              <button className="upgrade-btn" onClick={handleUpgradeClick}>
                 <Sparkles className="upgrade-icon" />
                 <span>Upgrade to Pro</span>
               </button>
@@ -217,6 +351,118 @@ const ExportPage = ({ onBack }: ExportPageProps) => {
           </div>
         </div>
       </div>
+
+      {/* Upgrade Modal */}
+      {showUpgradeModal && (
+        <div className="modal-overlay" onClick={() => !isProcessingPayment && setShowUpgradeModal(false)}>
+          <div className="upgrade-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2 className="modal-title">
+                <Crown className="modal-title-icon" />
+                Upgrade Your Plan
+              </h2>
+              <button 
+                className="modal-close"
+                onClick={() => !isProcessingPayment && setShowUpgradeModal(false)}
+                disabled={isProcessingPayment}
+              >
+                <X className="close-icon" />
+              </button>
+            </div>
+            
+            <div className="modal-content">
+              <div className="plans-grid">
+                {upgradePlans.map((plan) => (
+                  <div 
+                    key={plan.id}
+                    className={`plan-card ${plan.popular ? 'plan-card-popular' : ''} ${plan.bestValue ? 'plan-card-best' : ''}`}
+                  >
+                    {plan.popular && (
+                      <div className="plan-badge popular">
+                        <Star className="badge-icon" />
+                        Most Popular
+                      </div>
+                    )}
+                    {plan.bestValue && (
+                      <div className="plan-badge best-value">
+                        <Zap className="badge-icon" />
+                        Best Value
+                      </div>
+                    )}
+                    
+                    <div className="plan-header">
+                      <h3 className="plan-name">{plan.name}</h3>
+                      <div className="plan-price">
+                        <span className="price-amount">${plan.price}</span>
+                        <span className="price-period">/{plan.period}</span>
+                        {plan.originalPrice && (
+                          <span className="original-price">${plan.originalPrice}</span>
+                        )}
+                      </div>
+                      <p className="plan-description">{plan.description}</p>
+                    </div>
+                    
+                    <div className="plan-features">
+                      {plan.features.map((feature, index) => (
+                        <div key={index} className="feature-item">
+                          <CheckCircle className="feature-icon" />
+                          <span>{feature}</span>
+                        </div>
+                      ))}
+                    </div>
+                    
+                    <button
+                      className={`plan-select-btn ${selectedPlan === plan.id ? 'plan-selected' : ''}`}
+                      onClick={() => setSelectedPlan(plan.id)}
+                    >
+                      {selectedPlan === plan.id ? (
+                        <>
+                          <Check className="select-icon" />
+                          Selected
+                        </>
+                      ) : (
+                        'Select Plan'
+                      )}
+                    </button>
+                  </div>
+                ))}
+              </div>
+              
+              <div className="security-notice">
+                <Shield className="security-icon" />
+                <span>Your payment is secure and encrypted. We use Flutterwave for secure payment processing.</span>
+              </div>
+            </div>
+            
+            <div className="modal-actions">
+              <button 
+                className="modal-btn secondary"
+                onClick={() => setShowUpgradeModal(false)}
+                disabled={isProcessingPayment}
+              >
+                Cancel
+              </button>
+              <button 
+                className="modal-btn primary payment-btn"
+                onClick={handlePayment}
+                disabled={isProcessingPayment}
+              >
+                {isProcessingPayment ? (
+                  <>
+                    <div className="loading-spinner"></div>
+                    Processing Payment...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="payment-icon" />
+                    Pay Now - ${upgradePlans.find(p => p.id === selectedPlan)?.price}
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

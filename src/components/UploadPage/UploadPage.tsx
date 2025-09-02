@@ -19,12 +19,13 @@ import {
   Cloud,
   Zap,
   File,
-  CheckCircle
+  CheckCircle,
+  Loader
 } from 'lucide-react';
 import './UploadPage.css';
 
 interface UploadPageProps {
-  onNext: () => void;
+  onNext: (editedVideos: EditedVideo[]) => void;
 }
 
 interface UploadedFile {
@@ -32,6 +33,21 @@ interface UploadedFile {
   name: string;
   size: string;
   type: string;
+  file: File;
+}
+
+interface EditedVideo {
+  id: string;
+  name: string;
+  url: string;
+  effect: string;
+}
+
+interface ApiResponse {
+  id: string;
+  status: string;
+  output?: string;
+  error?: string;
 }
 
 const UploadPage = ({ onNext }: UploadPageProps) => {
@@ -39,7 +55,12 @@ const UploadPage = ({ onNext }: UploadPageProps) => {
   const [isDragging, setIsDragging] = useState(false);
   const [error, setError] = useState('');
   const [selectedEffects, setSelectedEffects] = useState<string[]>([]);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [progress, setProgress] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // In a real application, this would be stored securely
+  const API_KEY = 'your_runwayml_api_key_here'; // Replace with your actual API key
 
   const effectOptions = [
     { id: 'retro', name: 'Retro',  icon: <Tv className="effect-icon" />, description: 'Vintage 80s vibe' },
@@ -93,7 +114,8 @@ const UploadPage = ({ onNext }: UploadPageProps) => {
           id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
           name: file.name,
           size: formatFileSize(file.size),
-          type: file.type
+          type: file.type,
+          file: file
         };
         newFiles.push(uploadedFile);
       }
@@ -134,7 +156,123 @@ const UploadPage = ({ onNext }: UploadPageProps) => {
     );
   };
 
-  const canProceed = uploadedFiles.length >= 2;
+  // Function to upload file to a temporary storage (mock implementation)
+  const uploadToTempStorage = async (file: File): Promise<string> => {
+    // In a real application, you would upload to cloud storage like S3
+    // and return the URL. For demo purposes, we'll create a blob URL
+    return URL.createObjectURL(file);
+  };
+
+  // Function to apply AI effect using RunwayML API
+  const applyAIEffect = async (videoUrl: string, effect: string): Promise<string> => {
+    // This is a simplified version of the RunwayML API call
+    // You would need to adjust based on the specific API requirements
+    
+    const response = await fetch('https://api.runwayml.com/v1/effects/apply', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        input: videoUrl,
+        effect: effect,
+        // Additional parameters based on the specific effect
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`API error: ${response.statusText}`);
+    }
+
+    const data: ApiResponse = await response.json();
+    
+    // Poll for result (in a real app, you might use WebSockets or webhooks)
+    return await pollForResult(data.id);
+  };
+
+  // Poll for the result of the AI processing
+  const pollForResult = async (jobId: string): Promise<string> => {
+    const maxAttempts = 30;
+    let attempts = 0;
+    
+    while (attempts < maxAttempts) {
+      await new Promise(resolve => setTimeout(resolve, 2000)); // Wait 2 seconds
+      
+      const response = await fetch(`https://api.runwayml.com/v1/jobs/${jobId}`, {
+        headers: {
+          'Authorization': `Bearer ${API_KEY}`,
+        },
+      });
+      
+      if (!response.ok) {
+        throw new Error(`API error: ${response.statusText}`);
+      }
+      
+      const data: ApiResponse = await response.json();
+      
+      if (data.status === 'completed' && data.output) {
+        return data.output;
+      } else if (data.status === 'failed') {
+        throw new Error(data.error || 'Processing failed');
+      }
+      
+      attempts++;
+      setProgress(Math.min(95, (attempts / maxAttempts) * 100)); // Update progress
+    }
+    
+    throw new Error('Processing timeout');
+  };
+
+  // Process videos with selected effects
+  const processVideos = async () => {
+    if (uploadedFiles.length < 2 || selectedEffects.length === 0) return;
+    
+    setIsProcessing(true);
+    setProgress(0);
+    
+    try {
+      const editedVideos: EditedVideo[] = [];
+      
+      // Process each file with each selected effect
+      for (let i = 0; i < uploadedFiles.length; i++) {
+        const file = uploadedFiles[i];
+        const tempUrl = await uploadToTempStorage(file.file);
+        
+        for (let j = 0; j < selectedEffects.length; j++) {
+          const effect = selectedEffects[j];
+          setProgress(((i * selectedEffects.length + j) / (uploadedFiles.length * selectedEffects.length)) * 80);
+          
+          try {
+            const outputUrl = await applyAIEffect(tempUrl, effect);
+            
+            editedVideos.push({
+              id: `${file.id}-${effect}`,
+              name: `${file.name} (${effect})`,
+              url: outputUrl,
+              effect: effect
+            });
+          } catch (error) {
+            console.error(`Failed to process ${file.name} with effect ${effect}:`, error);
+            // Continue with other processing even if one fails
+          }
+        }
+      }
+      
+      setProgress(100);
+      setTimeout(() => {
+        setIsProcessing(false);
+        onNext(editedVideos);
+      }, 1000);
+      
+    } catch (error) {
+      console.error('Processing failed:', error);
+      setError('Failed to process videos. Please try again.');
+      setIsProcessing(false);
+    }
+  };
+
+  const canProceed = uploadedFiles.length >= 2 && selectedEffects.length > 0 && !isProcessing;
 
   return (
     <div className="upload-page">
@@ -148,29 +286,44 @@ const UploadPage = ({ onNext }: UploadPageProps) => {
 
         {/* Upload Area */}
         <div 
-          className={`upload-area ${isDragging ? 'upload-area-dragging' : ''}`}
+          className={`upload-area ${isDragging ? 'upload-area-dragging' : ''} ${isProcessing ? 'upload-area-disabled' : ''}`}
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
-          onClick={handleFileInputClick}
+          onClick={isProcessing ? undefined : handleFileInputClick}
         >
           <div className="upload-content">
-            <div className="upload-icon-container">
-              <Upload className="upload-icon" />
-              <div className="upload-pulse"></div>
-            </div>
-            
-            <h3 className="upload-text">
-              {isDragging ? 'Drop your files here' : 'Drop your video files here'}
-            </h3>
-            <p className="upload-subtext">
-              or <span className="upload-link">click to browse</span>
-            </p>
-            
-            <div className="upload-formats">
-              <span className="format-tag"><File className="format-icon" /> MP4</span>
-              <span className="format-tag"><File className="format-icon" /> MOV</span>
-            </div>
+            {isProcessing ? (
+              <>
+                <div className="processing-spinner">
+                  <Loader className="spinner-icon" />
+                </div>
+                <h3 className="upload-text">Processing your videos...</h3>
+                <div className="progress-bar">
+                  <div className="progress-fill" style={{ width: `${progress}%` }}></div>
+                </div>
+                <p className="upload-subtext">{Math.round(progress)}% complete</p>
+              </>
+            ) : (
+              <>
+                <div className="upload-icon-container">
+                  <Upload className="upload-icon" />
+                  <div className="upload-pulse"></div>
+                </div>
+                
+                <h3 className="upload-text">
+                  {isDragging ? 'Drop your files here' : 'Drop your video files here'}
+                </h3>
+                <p className="upload-subtext">
+                  or <span className="upload-link">click to browse</span>
+                </p>
+                
+                <div className="upload-formats">
+                  <span className="format-tag"><File className="format-icon" /> MP4</span>
+                  <span className="format-tag"><File className="format-icon" /> MOV</span>
+                </div>
+              </>
+            )}
           </div>
           
           <input
@@ -180,6 +333,7 @@ const UploadPage = ({ onNext }: UploadPageProps) => {
             accept=".mp4,.mov,video/mp4,video/quicktime"
             onChange={(e) => handleFileSelect(e.target.files)}
             className="upload-input"
+            disabled={isProcessing}
           />
         </div>
 
@@ -222,6 +376,7 @@ const UploadPage = ({ onNext }: UploadPageProps) => {
                     <button 
                       className="remove-btn"
                       onClick={() => removeFile(file.id)}
+                      disabled={isProcessing}
                     >
                       <X className="remove-icon" />
                     </button>
@@ -247,6 +402,7 @@ const UploadPage = ({ onNext }: UploadPageProps) => {
                   className={`effect-card ${selectedEffects.includes(effect.id) ? 'effect-card-selected' : ''}`}
                   onClick={() => toggleEffect(effect.id)}
                   style={{ animationDelay: `${index * 0.1}s` }}
+                  disabled={isProcessing}
                 >
                   <div className="effect-icon-container">{effect.icon}</div>
                   <div className="effect-info">
@@ -284,6 +440,10 @@ const UploadPage = ({ onNext }: UploadPageProps) => {
               <div className="requirement-indicator"></div>
               Supported formats: MP4, MOV
             </li>
+            <li className={selectedEffects.length > 0 ? 'requirement-met' : ''}>
+              <div className="requirement-indicator"></div>
+              Select at least 1 effect
+            </li>
           </ul>
         </div>
 
@@ -291,17 +451,23 @@ const UploadPage = ({ onNext }: UploadPageProps) => {
         <div className="upload-actions">
           <button 
             className={`next-btn ${canProceed ? 'next-btn-enabled' : 'next-btn-disabled'}`}
-            onClick={onNext}
+            onClick={processVideos}
             disabled={!canProceed}
           >
-            <Video className="next-icon" />
-            <span>Next: Auto Edit</span>
+            {isProcessing ? (
+              <Loader className="next-icon spinning" />
+            ) : (
+              <Video className="next-icon" />
+            )}
+            <span>{isProcessing ? 'Processing...' : 'Next: Auto Edit'}</span>
             <div className="btn-shimmer"></div>
           </button>
           
-          {!canProceed && (
+          {!canProceed && !isProcessing && (
             <p className="upload-hint">
-              Upload at least 2 videos to continue
+              {uploadedFiles.length < 2 
+                ? 'Upload at least 2 videos to continue' 
+                : 'Select at least 1 effect to continue'}
             </p>
           )}
         </div>
